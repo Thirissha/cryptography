@@ -1,0 +1,25 @@
+#include <stdio.h>
+#include <string.h>
+void monoalphabeticCipher(char* plaintext, char* key) {
+    char ciphertext[100];
+    int i;
+    for (i = 0; plaintext[i] != '\0'; i++) {
+        if (plaintext[i] >= 'a' && plaintext[i] <= 'z') {
+            ciphertext[i] = key[plaintext[i] - 'a'];
+        } else if (plaintext[i] >= 'A' && plaintext[i] <= 'Z') {
+            ciphertext[i] = key[plaintext[i] - 'A'];
+        } else {
+            ciphertext[i] = plaintext[i];
+        }
+    }
+    ciphertext[i] = '\0';
+    printf("Encrypted text: %s\n", ciphertext);
+}
+int main() {
+    char plaintext[100];
+    char key[26] = "QWERTYUIOPASDFGHJKLZXCVBNM";  // Example key
+    printf("Enter a string to encrypt: ");
+    gets(plaintext);
+    monoalphabeticCipher(plaintext, key);
+    return 0;
+}
