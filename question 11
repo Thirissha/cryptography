@@ -1,0 +1,96 @@
+#include <stdio.h>
+#include <string.h>
+#include <ctype.h>
+
+#define MATRIX_SIZE 5
+
+// Function to prepare the Playfair cipher matrix
+void preparePlayfairMatrix(char matrix[MATRIX_SIZE][MATRIX_SIZE]) {
+    char key[] = "MFHIKUNOPQZVWXYELARGDSTBC"; // Combined key with I/J merged
+    int k = 0;
+
+    // Fill the matrix
+    for (int i = 0; i < MATRIX_SIZE; i++) {
+        for (int j = 0; j < MATRIX_SIZE; j++) {
+            matrix[i][j] = key[k++];
+        }
+    }
+}
+
+// Function to normalize the message (remove spaces, merge I and J)
+void normalizeMessage(char message[], char normalized[]) {
+    int len = strlen(message);
+    int index = 0;
+
+    for (int i = 0; i < len; i++) {
+        if (isalpha(message[i])) {
+            normalized[index++] = toupper(message[i]);
+            if (message[i] == 'J') // Replace 'J' with 'I'
+                normalized[index - 1] = 'I';
+        }
+    }
+
+    normalized[index] = '\0';
+}
+
+// Function to encrypt the message using Playfair cipher
+void encryptMessage(char message[], char matrix[MATRIX_SIZE][MATRIX_SIZE], char encrypted[]) {
+    int len = strlen(message);
+    int index = 0;
+    char a, b;
+    int row1, col1, row2, col2;
+
+    for (int i = 0; i < len; i += 2) {
+        a = message[i];
+        b = (i + 1 < len) ? message[i + 1] : 'X'; // Pad with 'X' if odd length
+
+        // Find positions in the matrix
+        for (int row = 0; row < MATRIX_SIZE; row++) {
+            for (int col = 0; col < MATRIX_SIZE; col++) {
+                if (matrix[row][col] == a) {
+                    row1 = row;
+                    col1 = col;
+                }
+                if (matrix[row][col] == b) {
+                    row2 = row;
+                    col2 = col;
+                }
+            }
+        }
+
+        // Apply encryption rules
+        if (row1 == row2) {
+            encrypted[index++] = matrix[row1][(col1 + 1) % MATRIX_SIZE];
+            encrypted[index++] = matrix[row2][(col2 + 1) % MATRIX_SIZE];
+        } else if (col1 == col2) {
+            encrypted[index++] = matrix[(row1 + 1) % MATRIX_SIZE][col1];
+            encrypted[index++] = matrix[(row2 + 1) % MATRIX_SIZE][col2];
+        } else {
+            encrypted[index++] = matrix[row1][col2];
+            encrypted[index++] = matrix[row2][col1];
+        }
+    }
+
+    encrypted[index] = '\0';
+}
+
+int main() {
+    char message[] = "Must see you over Cadogan West. Coming at once.";
+    char matrix[MATRIX_SIZE][MATRIX_SIZE];
+    char normalizedMessage[100]; // Assuming max message size
+    char encrypted[200]; // Assuming max encrypted message size
+
+    // Prepare the Playfair matrix
+    preparePlayfairMatrix(matrix);
+
+    // Normalize the message
+    normalizeMessage(message, normalizedMessage);
+
+    // Encrypt the message
+    encryptMessage(normalizedMessage, matrix, encrypted);
+
+    printf("Original message: %s\n", message);
+    printf("Encrypted message: %s\n", encrypted);
+
+    return 0;
+}
