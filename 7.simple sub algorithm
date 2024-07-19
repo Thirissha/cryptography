@@ -1,0 +1,50 @@
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#define CIPHER_LEN 144
+char freq_ciphertext[] = "53‡‡†305))6*;4826)4‡.)4‡);806*;48†8¶60))85;;]8*;:‡*8†83(88)5*†;46(;88*96*?;8)*‡(;485);5*†2:*‡(;4956*2(5*—4)8¶8*;4069285);)6†8)4‡‡;1(‡9;48081;8:8‡1;48†85;4)485†528806*81(‡9;48;(88;4(‡?34;48)4‡;161;:188;‡?;";
+char deciphered_text[CIPHER_LEN + 1];
+char cipher_freq[26];
+int freq_count[256] = {0};
+void performFrequencyAnalysis() {
+    for (int i = 0; i < strlen(freq_ciphertext); i++) {
+        if (freq_ciphertext[i] != ' ' && freq_ciphertext[i] != '\0' && freq_ciphertext[i] != '\n') {
+            freq_count[(int)freq_ciphertext[i]]++;
+        }
+    }
+    for (int i = 0; i < 256; i++) {
+        for (int j = i + 1; j < 256; j++) {
+            if (freq_count[i] < freq_count[j]) {
+                int temp_count = freq_count[i];
+                freq_count[i] = freq_count[j];
+                freq_count[j] = temp_count;
+
+                char temp_char = (char)i;
+                (char)i = (char)j;
+                (char)j = temp_char;
+            }
+        }
+    }
+    char english_freq[] = "ETAOINSHRDLCUMWFGYPBVKJXQZ";
+    for (int i = 0; i < 26; i++) {
+        cipher_freq[i] = (char)i;
+    }
+}
+void decipherText() {
+    for (int i = 0; i < strlen(freq_ciphertext); i++) {
+        if (freq_ciphertext[i] != ' ' && freq_ciphertext[i] != '\0' && freq_ciphertext[i] != '\n') {
+            char ch = freq_ciphertext[i];
+            int index = strchr(cipher_freq, ch) - cipher_freq;
+            deciphered_text[i] = 'A' + index;
+        } else {
+            deciphered_text[i] = freq_ciphertext[i];
+        }
+    }
+    deciphered_text[strlen(freq_ciphertext)] = '\0';
+}
+int main() {
+    performFrequencyAnalysis();
+    decipherText();
+    printf("Deciphered Text: %s\n", deciphered_text);
+    return 0;
+}
