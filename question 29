@@ -1,0 +1,63 @@
+#include <stdio.h>
+#include <stdint.h>
+#include <string.h>
+
+#define STATE_SIZE 25  // 5x5 state matrix
+#define BLOCK_SIZE 16  // 1024 bits / 64 bits per lane
+#define CAPACITY_LANES 5  // 320 bits / 64 bits per lane
+
+typedef uint64_t lane_t;
+
+void printState(lane_t state[STATE_SIZE]) {
+    for (int i = 0; i < STATE_SIZE; i++) {
+        printf("Lane %d: %016llx\n", i, state[i]);
+    }
+}
+
+// Function to process a message block
+void processBlock(lane_t state[STATE_SIZE], const lane_t block[BLOCK_SIZE]) {
+    // Example processing: XOR each block lane into the state
+    for (int i = 0; i < BLOCK_SIZE; i++) {
+        state[i] ^= block[i];
+    }
+}
+
+// Function to check if all lanes in the capacity portion have at least one nonzero bit
+int allCapacityLanesNonZero(lane_t state[STATE_SIZE]) {
+    for (int i = STATE_SIZE - CAPACITY_LANES; i < STATE_SIZE; i++) {
+        if (state[i] == 0) {
+            return 0; // Found at least one zero lane in the capacity portion
+        }
+    }
+    return 1; // All lanes in the capacity portion are non-zero
+}
+
+int main() {
+    // Initialize the state matrix (5x5 lanes, each 64-bit)
+    lane_t state[STATE_SIZE] = {0};
+
+    // Initial message block (P0) with nonzero values
+    lane_t messageBlock[BLOCK_SIZE] = {0x1234567890abcdef, 0xfedcba0987654321, 0xabcdef1234567890,
+                                        0x0011223344556677, 0x8899aabbccddeeff, 0x1234567890abcdef,
+                                        0xfedcba0987654321, 0xabcdef1234567890, 0x0011223344556677,
+                                        0x8899aabbccddeeff, 0x1234567890abcdef, 0xfedcba0987654321,
+                                        0xabcdef1234567890, 0x0011223344556677, 0x8899aabbccddeeff,
+                                        0x1234567890abcdef, 0xfedcba0987654321};
+
+    int rounds = 0;
+    while (!allCapacityLanesNonZero(state)) {
+        // Process the message block
+        processBlock(state, messageBlock);
+
+        // Increment the round counter
+        rounds++;
+
+        // Optionally update the message block here if needed
+        // (For simplicity, we're using the same block in this example)
+    }
+
+    printf("All lanes in the capacity portion have at least one nonzero bit after %d rounds.\n", rounds);
+    printState(state);
+
+    return 0;
+}
