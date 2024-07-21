@@ -1,0 +1,130 @@
+#include <stdio.h>
+#include <stdlib.h>
+#include <time.h>
+
+// Function to find gcd of two numbers
+int gcd(int a, int b) {
+    if (b == 0) {
+        return a;
+    }
+    return gcd(b, a % b);
+}
+
+// Extended Euclidean Algorithm to find the multiplicative inverse
+int extendedEuclidean(int a, int b, int *x, int *y) {
+    if (a == 0) {
+        *x = 0;
+        *y = 1;
+        return b;
+    }
+    int x1, y1;
+    int gcd = extendedEuclidean(b % a, a, &x1, &y1);
+    *x = y1 - (b / a) * x1;
+    *y = x1;
+    return gcd;
+}
+
+// Function to find the multiplicative inverse of e modulo phi
+int modInverse(int e, int phi) {
+    int x, y;
+    int g = extendedEuclidean(e, phi, &x, &y);
+    if (g != 1) {
+        printf("Multiplicative inverse does not exist\n");
+        exit(1);
+    } else {
+        return (x % phi + phi) % phi;
+    }
+}
+
+// Function to perform modular exponentiation
+int modExp(int base, int exp, int mod) {
+    int result = 1;
+    base = base % mod;
+    while (exp > 0) {
+        if (exp % 2 == 1) {
+            result = (result * base) % mod;
+        }
+        exp = exp >> 1;
+        base = (base * base) % mod;
+    }
+    return result;
+}
+
+// Function to generate a random prime number
+int generatePrime() {
+    int primes[] = {53, 59, 61, 67, 71, 73, 79, 83, 89, 97}; // Sample primes
+    int index = rand() % 10;
+    return primes[index];
+}
+
+int main() {
+    srand(time(NULL));
+
+    // Step 1: Generate two distinct prime numbers p and q
+    int p = generatePrime();
+    int q;
+    do {
+        q = generatePrime();
+    } while (q == p);
+
+    // Step 2: Compute n = pq
+    int n = p * q;
+    printf("p = %d, q = %d, n = %d\n", p, q, n);
+
+    // Step 3: Compute phi(n) = (p-1)(q-1)
+    int phi = (p - 1) * (q - 1);
+    printf("phi(n) = %d\n", phi);
+
+    // Step 4: Choose e such that 1 < e < phi(n) and gcd(e, phi(n)) = 1
+    int e;
+    do {
+        e = rand() % (phi - 2) + 2; // e in range [2, phi-1]
+    } while (gcd(e, phi) != 1);
+    printf("Public key e = %d\n", e);
+
+    // Step 5: Compute d, the modular multiplicative inverse of e modulo phi
+    int d = modInverse(e, phi);
+    printf("Private key d = %d\n", d);
+
+    // Encrypt a message (each letter represented as an integer 0-25)
+    char message[] = "HELLO";
+    int message_length = sizeof(message) - 1;
+    int encrypted[message_length];
+
+    printf("Message: %s\n", message);
+    for (int i = 0; i < message_length; i++) {
+        int plaintext = message[i] - 'A';
+        encrypted[i] = modExp(plaintext, e, n);
+        printf("Encrypted[%d]: %d\n", i, encrypted[i]);
+    }
+
+    // Decrypt the message
+    char decrypted[message_length + 1];
+    decrypted[message_length] = '\0';
+    for (int i = 0; i < message_length; i++) {
+        int decrypted_plaintext = modExp(encrypted[i], d, n);
+        decrypted[i] = decrypted_plaintext + 'A';
+    }
+    printf("Decrypted Message: %s\n", decrypted);
+
+    // Attack: Build a lookup table
+    int lookup_table[26];
+    for (int i = 0; i < 26; i++) {
+        lookup_table[i] = modExp(i, e, n);
+    }
+
+    // Use the lookup table to decrypt
+    char attacked_decrypted[message_length + 1];
+    attacked_decrypted[message_length] = '\0';
+    for (int i = 0; i < message_length; i++) {
+        for (int j = 0; j < 26; j++) {
+            if (lookup_table[j] == encrypted[i]) {
+                attacked_decrypted[i] = j + 'A';
+                break;
+            }
+        }
+    }
+    printf("Attacked Decrypted Message: %s\n", attacked_decrypted);
+
+    return 0;
+}
