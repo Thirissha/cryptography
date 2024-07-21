@@ -1,0 +1,138 @@
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <openssl/evp.h>
+#include <openssl/rand.h>
+#include <openssl/dsa.h>
+#include <openssl/rsa.h>
+#include <openssl/pem.h>
+#include <openssl/sha.h>
+
+// Function to print bytes in hexadecimal
+void printHex(const char *label, const unsigned char *data, size_t len) {
+    printf("%s: ", label);
+    for (size_t i = 0; i < len; i++) {
+        printf("%02X", data[i]);
+    }
+    printf("\n");
+}
+
+// Function to sign a message with DSA
+int signDSA(const EVP_PKEY *pkey, const unsigned char *msg, size_t msg_len, unsigned char *sig, size_t *sig_len) {
+    EVP_MD_CTX *mdctx = EVP_MD_CTX_new();
+    if (!mdctx) return 0;
+
+    if (1 != EVP_DigestSignInit(mdctx, NULL, EVP_sha256(), NULL, pkey)) {
+        EVP_MD_CTX_free(mdctx);
+        return 0;
+    }
+
+    if (1 != EVP_DigestSignUpdate(mdctx, msg, msg_len)) {
+        EVP_MD_CTX_free(mdctx);
+        return 0;
+    }
+
+    if (1 != EVP_DigestSignFinal(mdctx, sig, sig_len)) {
+        EVP_MD_CTX_free(mdctx);
+        return 0;
+    }
+
+    EVP_MD_CTX_free(mdctx);
+    return 1;
+}
+
+// Function to sign a message with RSA
+int signRSA(const EVP_PKEY *pkey, const unsigned char *msg, size_t msg_len, unsigned char *sig, size_t *sig_len) {
+    EVP_MD_CTX *mdctx = EVP_MD_CTX_new();
+    if (!mdctx) return 0;
+
+    if (1 != EVP_DigestSignInit(mdctx, NULL, EVP_sha256(), NULL, pkey)) {
+        EVP_MD_CTX_free(mdctx);
+        return 0;
+    }
+
+    if (1 != EVP_DigestSignUpdate(mdctx, msg, msg_len)) {
+        EVP_MD_CTX_free(mdctx);
+        return 0;
+    }
+
+    if (1 != EVP_DigestSignFinal(mdctx, sig, sig_len)) {
+        EVP_MD_CTX_free(mdctx);
+        return 0;
+    }
+
+    EVP_MD_CTX_free(mdctx);
+    return 1;
+}
+
+int main() {
+    // Initialize OpenSSL
+    OpenSSL_add_all_algorithms();
+    ERR_load_crypto_strings();
+
+    const char *message = "This is a test message.";
+    size_t msg_len = strlen(message);
+
+    // DSA Key Generation
+    EVP_PKEY *dsa_key = NULL;
+    EVP_PKEY_CTX *dsa_ctx = EVP_PKEY_CTX_new_id(EVP_PKEY_DSA, NULL);
+    if (!dsa_ctx || EVP_PKEY_keygen_init(dsa_ctx) <= 0 || EVP_PKEY_keygen(dsa_ctx, &dsa_key) <= 0) {
+        fprintf(stderr, "Error generating DSA key.\n");
+        exit(EXIT_FAILURE);
+    }
+
+    // Generate signatures using DSA
+    unsigned char dsa_sig[256];
+    size_t dsa_sig_len;
+    if (!signDSA(dsa_key, (unsigned char *)message, msg_len, dsa_sig, &dsa_sig_len)) {
+        fprintf(stderr, "Error signing with DSA.\n");
+        exit(EXIT_FAILURE);
+    }
+    printHex("DSA Signature", dsa_sig, dsa_sig_len);
+
+    // Generate a second signature with DSA to show variability
+    unsigned char dsa_sig2[256];
+    size_t dsa_sig2_len;
+    if (!signDSA(dsa_key, (unsigned char *)message, msg_len, dsa_sig2, &dsa_sig2_len)) {
+        fprintf(stderr, "Error signing with DSA.\n");
+        exit(EXIT_FAILURE);
+    }
+    printHex("DSA Signature (Second)", dsa_sig2, dsa_sig2_len);
+
+    // RSA Key Generation
+    EVP_PKEY *rsa_key = NULL;
+    EVP_PKEY_CTX *rsa_ctx = EVP_PKEY_CTX_new_id(EVP_PKEY_RSA, NULL);
+    if (!rsa_ctx || EVP_PKEY_keygen_init(rsa_ctx) <= 0 || EVP_PKEY_keygen(rsa_ctx, &rsa_key) <= 0) {
+        fprintf(stderr, "Error generating RSA key.\n");
+        exit(EXIT_FAILURE);
+    }
+
+    // Generate signatures using RSA
+    unsigned char rsa_sig[256];
+    size_t rsa_sig_len;
+    if (!signRSA(rsa_key, (unsigned char *)message, msg_len, rsa_sig, &rsa_sig_len)) {
+        fprintf(stderr, "Error signing with RSA.\n");
+        exit(EXIT_FAILURE);
+    }
+    printHex("RSA Signature", rsa_sig, rsa_sig_len);
+
+    // Generate a second signature with RSA to show consistency
+    unsigned char rsa_sig2[256];
+    size_t rsa_sig2_len;
+    if (!signRSA(rsa_key, (unsigned char *)message, msg_len, rsa_sig2, &rsa_sig2_len)) {
+        fprintf(stderr, "Error signing with RSA.\n");
+        exit(EXIT_FAILURE);
+    }
+    printHex("RSA Signature (Second)", rsa_sig2, rsa_sig2_len);
+
+    // Cleanup
+    EVP_PKEY_free(dsa_key);
+    EVP_PKEY_CTX_free(dsa_ctx);
+    EVP_PKEY_free(rsa_key);
+    EVP_PKEY_CTX_free(rsa_ctx);
+
+    EVP_cleanup();
+    ERR_free_strings();
+
+    return 0;
+}
