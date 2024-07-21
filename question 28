@@ -1,0 +1,49 @@
+#include <stdio.h>
+#include <stdlib.h>
+#include <time.h>
+
+// Function to perform modular exponentiation
+unsigned long long modExp(unsigned long long base, unsigned long long exp, unsigned long long mod) {
+    unsigned long long result = 1;
+    base = base % mod;
+    while (exp > 0) {
+        if (exp % 2 == 1) {
+            result = (result * base) % mod;
+        }
+        exp = exp >> 1;
+        base = (base * base) % mod;
+    }
+    return result;
+}
+
+int main() {
+    unsigned long long p = 23; // A prime number, public
+    unsigned long long g = 5;  // A primitive root modulo p, public
+    
+    // Alice and Bob select their secret numbers
+    unsigned long long a_secret = 6; // Alice's secret
+    unsigned long long b_secret = 15; // Bob's secret
+    
+    // Alice computes her public value
+    unsigned long long A = modExp(g, a_secret, p);
+    printf("Alice's public value (A): %llu\n", A);
+    
+    // Bob computes his public value
+    unsigned long long B = modExp(g, b_secret, p);
+    printf("Bob's public value (B): %llu\n", B);
+    
+    // Alice and Bob exchange their public values and compute the shared secret key
+    unsigned long long alice_shared_key = modExp(B, a_secret, p);
+    unsigned long long bob_shared_key = modExp(A, b_secret, p);
+    
+    printf("Alice's shared key: %llu\n", alice_shared_key);
+    printf("Bob's shared key: %llu\n", bob_shared_key);
+    
+    if (alice_shared_key == bob_shared_key) {
+        printf("Key exchange successful!\n");
+    } else {
+        printf("Key exchange failed!\n");
+    }
+    
+    return 0;
+}
