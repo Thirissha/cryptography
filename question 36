@@ -1,0 +1,88 @@
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+
+// Function to compute the greatest common divisor (GCD)
+int gcd(int a, int b) {
+    while (b != 0) {
+        int temp = b;
+        b = a % b;
+        a = temp;
+    }
+    return a;
+}
+
+// Function to find the modular inverse of a modulo m
+int modInverse(int a, int m) {
+    a = a % m;
+    for (int x = 1; x < m; x++) {
+        if ((a * x) % m == 1) {
+            return x;
+        }
+    }
+    return -1; // Modular inverse does not exist
+}
+
+// Function to encrypt a letter using the affine Caesar cipher
+char affineEncrypt(char p, int a, int b) {
+    if (p < 'A' || p > 'Z') {
+        return p; // Return non-alphabetic characters unchanged
+    }
+    int pIndex = p - 'A';
+    int cIndex = (a * pIndex + b) % 26;
+    return 'A' + cIndex;
+}
+
+// Function to decrypt a letter using the affine Caesar cipher
+char affineDecrypt(char c, int a, int b) {
+    if (c < 'A' || c > 'Z') {
+        return c; // Return non-alphabetic characters unchanged
+    }
+    int cIndex = c - 'A';
+    int aInv = modInverse(a, 26);
+    if (aInv == -1) {
+        printf("Error: Modular inverse does not exist. Decryption is not possible.\n");
+        exit(EXIT_FAILURE);
+    }
+    int pIndex = (aInv * (cIndex - b + 26)) % 26;
+    return 'A' + pIndex;
+}
+
+// Function to print the text
+void printText(const char *label, const char *text) {
+    printf("%s: %s\n", label, text);
+}
+
+int main() {
+    // Parameters for the affine Caesar cipher
+    int a = 5; // Must be coprime with 26
+    int b = 8;
+
+    // Check if a is coprime with 26
+    if (gcd(a, 26) != 1) {
+        printf("Error: Parameter 'a' must be coprime with 26.\n");
+        return EXIT_FAILURE;
+    }
+
+    const char *plaintext = "HELLOAFFINECIPHER";
+    size_t textLength = strlen(plaintext);
+
+    char ciphertext[textLength + 1];
+    char decryptedtext[textLength + 1];
+
+    // Encrypt the plaintext
+    for (size_t i = 0; i < textLength; i++) {
+        ciphertext[i] = affineEncrypt(plaintext[i], a, b);
+    }
+    ciphertext[textLength] = '\0'; // Null-terminate the ciphertext string
+    printText("Ciphertext", ciphertext);
+
+    // Decrypt the ciphertext
+    for (size_t i = 0; i < textLength; i++) {
+        decryptedtext[i] = affineDecrypt(ciphertext[i], a, b);
+    }
+    decryptedtext[textLength] = '\0'; // Null-terminate the decrypted text string
+    printText("Decrypted text", decryptedtext);
+
+    return 0;
+}
