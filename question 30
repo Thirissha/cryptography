@@ -1,0 +1,61 @@
+#include <stdio.h>
+#include <stdint.h>
+#include <string.h>
+
+// Simple block cipher for demonstration (XOR with key)
+void blockCipher(uint8_t *block, const uint8_t *key) {
+    for (int i = 0; i < 16; i++) {
+        block[i] ^= key[i];
+    }
+}
+
+// Compute CBC-MAC for a message with a given key
+void computeCBCMAC(const uint8_t *key, const uint8_t *message, uint8_t *mac) {
+    uint8_t block[16];
+    memset(block, 0, sizeof(block));
+    
+    // Process each block
+    memcpy(block, message, 16);
+    blockCipher(block, key);
+    
+    // Output MAC is the last block
+    memcpy(mac, block, 16);
+}
+
+// Demonstrate CBC-MAC and its vulnerability
+int main() {
+    uint8_t key[16] = {0x1F, 0x2A, 0x3B, 0x4C, 0x5D, 0x6E, 0x7F, 0x8G, 
+                       0x9H, 0xA0, 0xB1, 0xC2, 0xD3, 0xE4, 0xF5, 0xG6}; // Example key
+    uint8_t X[16] = {0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07,
+                     0x08, 0x09, 0x0A, 0x0B, 0x0C, 0x0D, 0x0E, 0x0F}; // Example message X
+    uint8_t T[16]; // MAC for the message X
+
+    // Compute CBC-MAC for X
+    computeCBCMAC(key, X, T);
+
+    // Print MAC T
+    printf("MAC T: ");
+    for (int i = 0; i < 16; i++) {
+        printf("%02X ", T[i]);
+    }
+    printf("\n");
+
+    // Construct the two-block message X || (X ⊕ T)
+    uint8_t XOR_X_T[16];
+    for (int i = 0; i < 16; i++) {
+        XOR_X_T[i] = X[i] ^ T[i];
+    }
+
+    // Compute CBC-MAC for the two-block message X || (X ⊕ T)
+    uint8_t twoBlockMAC[16];
+    computeCBCMAC(key, XOR_X_T, twoBlockMAC);
+
+    // Print MAC for the two-block message
+    printf("MAC for X || (X ⊕ T): ");
+    for (int i = 0; i < 16; i++) {
+        printf("%02X ", twoBlockMAC[i]);
+    }
+    printf("\n");
+
+    return 0;
+}
