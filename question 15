@@ -1,0 +1,113 @@
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <ctype.h>
+
+#define ALPHABET_SIZE 26
+#define MAX_LEN 1000
+
+// English letter frequency (in percentage)
+const float letter_frequency[ALPHABET_SIZE] = {
+    8.167, 1.492, 2.782, 4.253, 12.702, 2.228, 2.015, 6.094, // A-H
+    6.966, 0.153, 0.772, 4.025, 2.406, 6.749, 7.507, 1.929, // I-P
+    0.095, 5.987, 6.327, 9.056, 2.758, 0.978, 2.360, 0.150, // Q-X
+    1.974, 0.074 // Y-Z
+};
+
+// Function to decrypt ciphertext using a given key (shift)
+void decrypt(char *ciphertext, int shift) {
+    int len = strlen(ciphertext);
+    int i;
+
+    for (i = 0; i < len; i++) {
+        if (isalpha(ciphertext[i])) {
+            char base = islower(ciphertext[i]) ? 'a' : 'A';
+            ciphertext[i] = ((ciphertext[i] - base - shift + ALPHABET_SIZE) % ALPHABET_SIZE) + base;
+        }
+    }
+}
+
+// Function to calculate letter frequency distribution in a given text
+void calculate_frequency(int *frequency, const char *text) {
+    int i;
+    int len = strlen(text);
+
+    for (i = 0; i < len; i++) {
+        if (isalpha(text[i])) {
+            char base = islower(text[i]) ? 'a' : 'A';
+            frequency[text[i] - base]++;
+        }
+    }
+}
+
+// Function to compare frequencies for sorting
+int compare_frequency(const void *a, const void *b) {
+    return (*(int *)b - *(int *)a);
+}
+
+// Function to perform letter frequency attack on additive cipher
+void letter_frequency_attack(char *ciphertext, int top_plaintexts) {
+    int frequency[ALPHABET_SIZE] = {0};
+    float frequency_percent[ALPHABET_SIZE] = {0};
+    int len = strlen(ciphertext);
+    int i, j, k;
+
+    // Calculate letter frequency in ciphertext
+    calculate_frequency(frequency, ciphertext);
+
+    // Calculate percentage frequencies
+    for (i = 0; i < ALPHABET_SIZE; i++) {
+        frequency_percent[i] = (float)frequency[i] / len * 100.0;
+    }
+
+    // Sort frequency percentages in descending order
+    qsort(frequency_percent, ALPHABET_SIZE, sizeof(float), compare_frequency);
+
+    // Try possible shifts based on frequency analysis
+    for (i = 0; i < top_plaintexts; i++) {
+        int max_index = 0;
+        float max_diff = 0.0;
+
+        // Find the best matching shift
+        for (j = 0; j < ALPHABET_SIZE; j++) {
+            float diff = 0.0;
+            for (k = 0; k < ALPHABET_SIZE; k++) {
+                int expected_index = (k - j + ALPHABET_SIZE) % ALPHABET_SIZE;
+                diff += fabs(letter_frequency[k] - frequency_percent[expected_index]);
+            }
+            if (j == 0 || diff < max_diff) {
+                max_diff = diff;
+                max_index = j;
+            }
+        }
+
+        // Decrypt ciphertext with the best shift found
+        decrypt(ciphertext, max_index);
+
+        // Print the decrypted plaintext
+        printf("Plaintext possibility %d (Shift %d): %s\n", i + 1, max_index, ciphertext);
+
+        // Restore ciphertext to perform next decryption
+        calculate_frequency(frequency, ciphertext); // Recalculate frequency for next iteration
+    }
+}
+
+int main() {
+    char ciphertext[MAX_LEN];
+    int top_plaintexts;
+
+    // Example of ciphertext input
+    printf("Enter ciphertext: ");
+    fgets(ciphertext, sizeof(ciphertext), stdin);
+    ciphertext[strcspn(ciphertext, "\n")] = '\0'; // Remove newline character
+
+    // Example: User specifies top 10 possible plaintexts
+    printf("Enter number of top possible plaintexts to show (e.g., 10): ");
+    scanf("%d", &top_plaintexts);
+    getchar(); // Consume newline left by scanf
+
+    // Perform letter frequency attack
+    letter_frequency_attack(ciphertext, top_plaintexts);
+
+    return 0;
+}
