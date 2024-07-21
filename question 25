@@ -1,0 +1,89 @@
+#include <stdio.h>
+#include <stdlib.h>
+
+// Function to find gcd of two numbers
+int gcd(int a, int b) {
+    if (b == 0) {
+        return a;
+    }
+    return gcd(b, a % b);
+}
+
+// Extended Euclidean Algorithm to find the multiplicative inverse
+int extendedEuclidean(int a, int b, int *x, int *y) {
+    if (a == 0) {
+        *x = 0;
+        *y = 1;
+        return b;
+    }
+    int x1, y1;
+    int gcd = extendedEuclidean(b % a, a, &x1, &y1);
+    *x = y1 - (b / a) * x1;
+    *y = x1;
+    return gcd;
+}
+
+// Function to find the multiplicative inverse of e modulo phi
+int modInverse(int e, int phi) {
+    int x, y;
+    int g = extendedEuclidean(e, phi, &x, &y);
+    if (g != 1) {
+        printf("Multiplicative inverse does not exist\n");
+        exit(1);
+    } else {
+        return (x % phi + phi) % phi;
+    }
+}
+
+// Function to perform modular exponentiation
+int modExp(int base, int exp, int mod) {
+    int result = 1;
+    base = base % mod;
+    while (exp > 0) {
+        if (exp % 2 == 1) {
+            result = (result * base) % mod;
+        }
+        exp = exp >> 1;
+        base = (base * base) % mod;
+    }
+    return result;
+}
+
+int main() {
+    // Given public key components
+    int e = 31;
+    int n = 3599; // n = pq
+    int known_plaintext = 59; // Assume we know this plaintext has a common factor with n
+    
+    // Step 1: Find p using gcd
+    int p = gcd(known_plaintext, n);
+    if (p == 1 || p == n) {
+        printf("Failed to find a common factor\n");
+        return 1;
+    }
+    int q = n / p;
+    
+    printf("p = %d, q = %d\n", p, q);
+    
+    // Step 2: Calculate phi(n)
+    int phi = (p - 1) * (q - 1);
+    printf("phi(n) = %d\n", phi);
+    
+    // Step 3: Calculate the private key d
+    int d = modInverse(e, phi);
+    printf("Private key d = %d\n", d);
+    
+    // Example plaintext message (integer)
+    int plaintext = 42;
+    printf("Plaintext: %d\n", plaintext);
+    
+    // Encrypt the plaintext
+    int ciphertext = modExp(plaintext, e, n);
+    printf("Ciphertext: %d\n", ciphertext);
+    
+    // Decrypt the ciphertext
+    int decrypted = modExp(ciphertext, d, n);
+    printf("Decrypted text: %d\n", decrypted);
+    
+    return 0;
+}
