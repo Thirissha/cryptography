@@ -1,0 +1,62 @@
+#include <stdio.h>
+#include <stdlib.h>
+#include <time.h>
+#include <string.h>
+
+// Function to generate a random key stream
+void generateRandomKey(int *keyStream, size_t length, int maxValue) {
+    for (size_t i = 0; i < length; i++) {
+        keyStream[i] = rand() % (maxValue + 1); // Generate a number between 0 and maxValue
+    }
+}
+
+// Function to print the key stream
+void printKeyStream(const char *label, const int *keyStream, size_t length) {
+    printf("%s: ", label);
+    for (size_t i = 0; i < length; i++) {
+        printf("%d ", keyStream[i]);
+    }
+    printf("\n");
+}
+
+// Function to encrypt/decrypt using the one-time pad version of the Vigenère cipher
+void vigenereEncryptDecrypt(const char *text, const int *keyStream, char *output, size_t textLength, size_t keyLength) {
+    for (size_t i = 0; i < textLength; i++) {
+        if (text[i] >= 'A' && text[i] <= 'Z') {
+            output[i] = 'A' + (text[i] - 'A' + keyStream[i % keyLength]) % 26;
+        } else if (text[i] >= 'a' && text[i] <= 'z') {
+            output[i] = 'a' + (text[i] - 'a' + keyStream[i % keyLength]) % 26;
+        } else {
+            output[i] = text[i]; // Non-alphabetic characters are not encrypted
+        }
+    }
+}
+
+int main() {
+    srand(time(NULL)); // Seed for random number generation
+
+    const char *plaintext = "HELLOVIGENERECIPHER";
+    size_t textLength = strlen(plaintext);
+    size_t keyLength = textLength; // Key length should match plaintext length
+
+    int keyStream[textLength];
+    char ciphertext[textLength + 1];
+    char decryptedtext[textLength + 1];
+
+    // Generate a random key stream
+    generateRandomKey(keyStream, keyLength, 25);
+    printKeyStream("Generated Key Stream", keyStream, keyLength);
+
+    // Encrypt the plaintext
+    vigenereEncryptDecrypt(plaintext, keyStream, ciphertext, textLength, keyLength);
+    ciphertext[textLength] = '\0'; // Null-terminate the ciphertext string
+    printf("Ciphertext: %s\n", ciphertext);
+
+    // Decrypt the ciphertext
+    // In the Vigenère cipher, encryption and decryption are symmetrical with the same key
+    vigenereEncryptDecrypt(ciphertext, keyStream, decryptedtext, textLength, keyLength);
+    decryptedtext[textLength] = '\0'; // Null-terminate the decrypted text string
+    printf("Decrypted text: %s\n", decryptedtext);
+
+    return 0;
+}
