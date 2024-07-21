@@ -1,0 +1,74 @@
+#include <stdio.h>
+#include <string.h>
+#include <openssl/des.h>
+
+// Function to print bytes in hexadecimal format
+void printHex(const char *label, const unsigned char *data, size_t len) {
+    printf("%s: ", label);
+    for (size_t i = 0; i < len; i++) {
+        printf("%02X", data[i]);
+    }
+    printf("\n");
+}
+
+// Function to encrypt data using DES
+void desEncrypt(const unsigned char *key, const unsigned char *plaintext, unsigned char *ciphertext) {
+    DES_key_schedule schedule;
+    DES_cblock key_block;
+    DES_cblock input_block;
+    DES_cblock output_block;
+
+    // Set the key
+    memcpy(key_block, key, 8);
+    DES_set_odd_parity(&key_block);
+    DES_set_key_checked(&key_block, &schedule);
+
+    // Set the input block
+    memcpy(input_block, plaintext, 8);
+
+    // Perform encryption
+    DES_ecb_encrypt(&input_block, &output_block, &schedule, DES_ENCRYPT);
+    memcpy(ciphertext, output_block, 8);
+}
+
+// Function to decrypt data using DES
+void desDecrypt(const unsigned char *key, const unsigned char *ciphertext, unsigned char *plaintext) {
+    DES_key_schedule schedule;
+    DES_cblock key_block;
+    DES_cblock input_block;
+    DES_cblock output_block;
+
+    // Set the key
+    memcpy(key_block, key, 8);
+    DES_set_odd_parity(&key_block);
+    DES_set_key_checked(&key_block, &schedule);
+
+    // Set the input block
+    memcpy(input_block, ciphertext, 8);
+
+    // Perform decryption
+    DES_ecb_encrypt(&input_block, &output_block, &schedule, DES_DECRYPT);
+    memcpy(plaintext, output_block, 8);
+}
+
+int main() {
+    // Define key and plaintext
+    unsigned char key[8] = {0x13, 0xA0, 0x9F, 0x6B, 0x2D, 0xD3, 0x4E, 0xFF}; // Example key (8 bytes)
+    unsigned char plaintext[8] = {0x6A, 0x4C, 0x7E, 0xC9, 0xA2, 0x13, 0x59, 0xAF}; // Example plaintext (8 bytes)
+
+    unsigned char ciphertext[8];
+    unsigned char decryptedtext[8];
+
+    // Print original data
+    printHex("Original plaintext", plaintext, 8);
+
+    // Encrypt the plaintext
+    desEncrypt(key, plaintext, ciphertext);
+    printHex("Ciphertext", ciphertext, 8);
+
+    // Decrypt the ciphertext
+    desDecrypt(key, ciphertext, decryptedtext);
+    printHex("Decrypted text", decryptedtext, 8);
+
+    return 0;
+}
