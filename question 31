@@ -1,0 +1,78 @@
+#include <stdio.h>
+#include <stdint.h>
+#include <string.h>
+
+// Block size definitions
+#define BLOCK_SIZE_64 8   // 64 bits = 8 bytes
+#define BLOCK_SIZE_128 16 // 128 bits = 16 bytes
+
+// Constants for XOR operation
+#define CONSTANT_64 0x1B
+#define CONSTANT_128 0x87
+
+// Function to perform left shift and XOR operation for generating subkeys
+void generateSubkeys(const uint8_t *block, uint8_t *K1, uint8_t *K2, size_t blockSize, uint8_t constant) {
+    uint8_t temp[BLOCK_SIZE_128] = {0}; // Temporary storage for intermediate results
+
+    // Perform left shift
+    int carry = 0;
+    for (int i = blockSize - 1; i >= 0; i--) {
+        temp[i] = (block[i] << 1) | carry;
+        carry = (block[i] & 0x80) ? 1 : 0;
+    }
+
+    // XOR with the constant if needed
+    if (carry) {
+        temp[0] ^= constant;
+    }
+
+    // Copy the result to K1
+    memcpy(K1, temp, blockSize);
+
+    // Perform the left shift again to get K2
+    carry = 0;
+    for (int i = blockSize - 1; i >= 0; i--) {
+        temp[i] = (K1[i] << 1) | carry;
+        carry = (K1[i] & 0x80) ? 1 : 0;
+    }
+
+    // XOR with the constant if needed
+    if (carry) {
+        temp[0] ^= constant;
+    }
+
+    // Copy the result to K2
+    memcpy(K2, temp, blockSize);
+}
+
+// Print a block of bytes in hexadecimal format
+void printBlock(const char *label, const uint8_t *block, size_t size) {
+    printf("%s: ", label);
+    for (size_t i = 0; i < size; i++) {
+        printf("%02X ", block[i]);
+    }
+    printf("\n");
+}
+
+int main() {
+    // Initialize a block of zeros
+    uint8_t block_64[BLOCK_SIZE_64] = {0};
+    uint8_t block_128[BLOCK_SIZE_128] = {0};
+
+    // Subkeys for 64-bit block size
+    uint8_t K1_64[BLOCK_SIZE_64];
+    uint8_t K2_64[BLOCK_SIZE_64];
+    generateSubkeys(block_64, K1_64, K2_64, BLOCK_SIZE_64, CONSTANT_64);
+    printBlock("K1 (64-bit)", K1_64, BLOCK_SIZE_64);
+    printBlock("K2 (64-bit)", K2_64, BLOCK_SIZE_64);
+
+    // Subkeys for 128-bit block size
+    uint8_t K1_128[BLOCK_SIZE_128];
+    uint8_t K2_128[BLOCK_SIZE_128];
+    generateSubkeys(block_128, K1_128, K2_128, BLOCK_SIZE_128, CONSTANT_128);
+    printBlock("K1 (128-bit)", K1_128, BLOCK_SIZE_128);
+    printBlock("K2 (128-bit)", K2_128, BLOCK_SIZE_128);
+
+    return 0;
+}
+
