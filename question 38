@@ -1,0 +1,157 @@
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+
+#define BLOCK_SIZE 2
+#define MOD 26
+
+// Function to multiply matrices modulo MOD
+void matrixMultiply(int a[BLOCK_SIZE][BLOCK_SIZE], int b[BLOCK_SIZE][BLOCK_SIZE], int result[BLOCK_SIZE][BLOCK_SIZE]) {
+    for (int i = 0; i < BLOCK_SIZE; i++) {
+        for (int j = 0; j < BLOCK_SIZE; j++) {
+            result[i][j] = 0;
+            for (int k = 0; k < BLOCK_SIZE; k++) {
+                result[i][j] += (a[i][k] * b[k][j]) % MOD;
+            }
+            result[i][j] %= MOD;
+        }
+    }
+}
+
+// Function to find the modular inverse of a number modulo MOD
+int modInverse(int a, int mod) {
+    a = a % mod;
+    for (int x = 1; x < mod; x++) {
+        if ((a * x) % mod == 1) {
+            return x;
+        }
+    }
+    return -1; // Modular inverse does not exist
+}
+
+// Function to find the inverse of a matrix modulo MOD
+int matrixInverse(int matrix[BLOCK_SIZE][BLOCK_SIZE], int inverse[BLOCK_SIZE][BLOCK_SIZE]) {
+    int determinant = (matrix[0][0] * matrix[1][1] - matrix[0][1] * matrix[1][0]) % MOD;
+    if (determinant < 0) determinant += MOD;
+    int invDet = modInverse(determinant, MOD);
+    if (invDet == -1) return -1; // No modular inverse, matrix is not invertible
+
+    inverse[0][0] = (matrix[1][1] * invDet) % MOD;
+    inverse[1][1] = (matrix[0][0] * invDet) % MOD;
+    inverse[0][1] = (-matrix[0][1] * invDet + MOD) % MOD;
+    inverse[1][0] = (-matrix[1][0] * invDet + MOD) % MOD;
+
+    return 0;
+}
+
+// Function to encrypt a block of text
+void encryptBlock(int block[BLOCK_SIZE], int key[BLOCK_SIZE][BLOCK_SIZE], int cipher[BLOCK_SIZE]) {
+    int matrixBlock[BLOCK_SIZE][1];
+    int cipherMatrix[BLOCK_SIZE][1];
+    for (int i = 0; i < BLOCK_SIZE; i++) {
+        matrixBlock[i][0] = block[i];
+    }
+
+    matrixMultiply(key, matrixBlock, cipherMatrix);
+
+    for (int i = 0; i < BLOCK_SIZE; i++) {
+        cipher[i] = cipherMatrix[i][0];
+    }
+}
+
+// Function to decrypt a block of text
+void decryptBlock(int block[BLOCK_SIZE], int key[BLOCK_SIZE][BLOCK_SIZE], int plaintext[BLOCK_SIZE]) {
+    int matrixBlock[BLOCK_SIZE][1];
+    int plaintextMatrix[BLOCK_SIZE][1];
+    int keyInverse[BLOCK_SIZE][BLOCK_SIZE];
+
+    matrixInverse(key, keyInverse);
+
+    for (int i = 0; i < BLOCK_SIZE; i++) {
+        matrixBlock[i][0] = block[i];
+    }
+
+    matrixMultiply(keyInverse, matrixBlock, plaintextMatrix);
+
+    for (int i = 0; i < BLOCK_SIZE; i++) {
+        plaintext[i] = plaintextMatrix[i][0];
+    }
+}
+
+// Function to perform the Hill cipher known plaintext attack
+void knownPlaintextAttack(int plaintextPairs[2][BLOCK_SIZE], int ciphertextPairs[2][BLOCK_SIZE], int key[BLOCK_SIZE][BLOCK_SIZE]) {
+    int matrixP[BLOCK_SIZE][BLOCK_SIZE] = {
+        {plaintextPairs[0][0], plaintextPairs[0][1]},
+        {plaintextPairs[1][0], plaintextPairs[1][1]}
+    };
+
+    int matrixC[BLOCK_SIZE][BLOCK_SIZE] = {
+        {ciphertextPairs[0][0], ciphertextPairs[0][1]},
+        {ciphertextPairs[1][0], ciphertextPairs[1][1]}
+    };
+
+    int matrixPInv[BLOCK_SIZE][BLOCK_SIZE];
+    int matrixCInv[BLOCK_SIZE][BLOCK_SIZE];
+
+    if (matrixInverse(matrixP, matrixPInv) == -1) {
+        printf("Matrix P is not invertible.\n");
+        return;
+    }
+
+    matrixMultiply(matrixC, matrixPInv, matrixCInv);
+
+    for (int i = 0; i < BLOCK_SIZE; i++) {
+        for (int j = 0; j < BLOCK_SIZE; j++) {
+            key[i][j] = matrixCInv[i][j];
+        }
+    }
+}
+
+// Helper function to print a matrix
+void printMatrix(int matrix[BLOCK_SIZE][BLOCK_SIZE]) {
+    for (int i = 0; i < BLOCK_SIZE; i++) {
+        for (int j = 0; j < BLOCK_SIZE; j++) {
+            printf("%d ", matrix[i][j]);
+        }
+        printf("\n");
+    }
+}
+
+int main() {
+    int key[BLOCK_SIZE][BLOCK_SIZE] = {
+        {5, 8},
+        {17, 3}
+    };
+
+    int plaintextPairs[2][BLOCK_SIZE] = {
+        {6, 12}, // Plaintext block 1
+        {13, 7}  // Plaintext block 2
+    };
+
+    int ciphertextPairs[2][BLOCK_SIZE] = {
+        {13, 17}, // Ciphertext block 1
+        {7, 10}   // Ciphertext block 2
+    };
+
+    printf("Original Key Matrix:\n");
+    printMatrix(key);
+
+    int decryptedText[BLOCK_SIZE];
+    int encryptedText[BLOCK_SIZE];
+
+    // Encrypt and decrypt example
+    encryptBlock(plaintextPairs[0], key, encryptedText);
+    printf("Encrypted Text: %d %d\n", encryptedText[0], encryptedText[1]);
+
+    decryptBlock(ciphertextPairs[0], key, decryptedText);
+    printf("Decrypted Text: %d %d\n", decryptedText[0], decryptedText[1]);
+
+    // Perform known plaintext attack
+    int recoveredKey[BLOCK_SIZE][BLOCK_SIZE];
+    knownPlaintextAttack(plaintextPairs, ciphertextPairs, recoveredKey);
+    
+    printf("\nRecovered Key Matrix:\n");
+    printMatrix(recoveredKey);
+
+    return 0;
+}
