@@ -1,0 +1,144 @@
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <openssl/des.h>
+#include <openssl/rand.h>
+
+// Function to print bytes in hexadecimal format
+void printHex(const char *label, const unsigned char *data, size_t len) {
+    printf("%s: ", label);
+    for (size_t i = 0; i < len; i++) {
+        printf("%02X", data[i]);
+    }
+    printf("\n");
+}
+
+// Function to pad plaintext to a multiple of block size
+size_t padPlaintext(const unsigned char *plaintext, size_t plaintext_len, unsigned char *padded, size_t block_size) {
+    size_t padding_len = block_size - (plaintext_len % block_size);
+    size_t padded_len = plaintext_len + padding_len;
+
+    memcpy(padded, plaintext, plaintext_len);
+    memset(padded + plaintext_len, 0, padding_len); // padding with zeros
+
+    return padded_len;
+}
+
+// Function to perform ECB encryption/decryption
+void desEcb(const unsigned char *key, const unsigned char *input, unsigned char *output, size_t length, int encrypt) {
+    DES_key_schedule schedule;
+    DES_cblock key_block;
+    DES_cblock input_block;
+    DES_cblock output_block;
+
+    memcpy(key_block, key, 8);
+    DES_set_odd_parity(&key_block);
+    DES_set_key_checked(&key_block, &schedule);
+
+    for (size_t i = 0; i < length; i += 8) {
+        memcpy(input_block, input + i, 8);
+        DES_ecb_encrypt(&input_block, &output_block, &schedule, encrypt);
+        memcpy(output + i, output_block, 8);
+    }
+}
+
+// Function to perform CBC encryption/decryption
+void desCbc(const unsigned char *key, const unsigned char *iv, const unsigned char *input, unsigned char *output, size_t length, int encrypt) {
+    DES_key_schedule schedule;
+    DES_cblock key_block;
+    DES_cblock iv_block;
+    DES_cblock input_block;
+    DES_cblock output_block;
+
+    memcpy(key_block, key, 8);
+    DES_set_odd_parity(&key_block);
+    DES_set_key_checked(&key_block, &schedule);
+
+    memcpy(iv_block, iv, 8);
+
+    for (size_t i = 0; i < length; i += 8) {
+        memcpy(input_block, input + i, 8);
+
+        if (encrypt) {
+            for (int j = 0; j < 8; j++) {
+                input_block[j] ^= iv_block[j];
+            }
+            DES_ecb_encrypt(&input_block, &output_block, &schedule, DES_ENCRYPT);
+            memcpy(output + i, output_block, 8);
+            memcpy(iv_block, output_block, 8);
+        } else {
+            DES_ecb_encrypt(&input + i, &output_block, &schedule, DES_DECRYPT);
+            for (int j = 0; j < 8; j++) {
+                output_block[j] ^= iv_block[j];
+            }
+            memcpy(output + i, output_block, 8);
+            memcpy(iv_block, input + i, 8);
+        }
+    }
+}
+
+// Function to perform CFB encryption/decryption
+void desCfb(const unsigned char *key, const unsigned char *iv, const unsigned char *input, unsigned char *output, size_t length, int encrypt) {
+    DES_key_schedule schedule;
+    DES_cblock key_block;
+    DES_cblock iv_block;
+    DES_cblock input_block;
+    DES_cblock output_block;
+
+    memcpy(key_block, key, 8);
+    DES_set_odd_parity(&key_block);
+    DES_set_key_checked(&key_block, &schedule);
+
+    memcpy(iv_block, iv, 8);
+
+    for (size_t i = 0; i < length; i += 8) {
+        DES_ecb_encrypt(&iv_block, &output_block, &schedule, DES_ENCRYPT);
+
+        if (encrypt) {
+            for (int j = 0; j < 8; j++) {
+                output[j] = input[i + j] ^ output_block[j];
+            }
+        } else {
+            for (int j = 0; j < 8; j++) {
+                output[i + j] = input[i + j] ^ output_block[j];
+            }
+        }
+
+        memcpy(iv_block, output + i, 8);
+    }
+}
+
+int main() {
+    unsigned char key[8] = {0x13, 0xA0, 0x9F, 0x6B, 0x2D, 0xD3, 0x4E, 0xFF}; // Example key (8 bytes)
+    unsigned char iv[8] = {0x01, 0x23, 0x45, 0x67, 0x89, 0xAB, 0xCD, 0xEF};  // Example IV (8 bytes)
+
+    unsigned char plaintext[16] = {0x6A, 0x4C, 0x7E, 0xC9, 0xA2, 0x13, 0x59, 0xAF, 0xDE, 0xAD, 0xBE, 0xEF, 0xFE, 0xED, 0xFA, 0xCE};
+    unsigned char padded[16];
+    size_t padded_len = padPlaintext(plaintext, sizeof(plaintext), padded, 8);
+
+    unsigned char encrypted[16];
+    unsigned char decrypted[16];
+
+    // ECB mode encryption and decryption
+    desEcb(key, padded, encrypted, padded_len, DES_ENCRYPT);
+    printHex("ECB Encrypted", encrypted, padded_len);
+
+    desEcb(key, encrypted, decrypted, padded_len, DES_DECRYPT);
+    printHex("ECB Decrypted", decrypted, padded_len);
+
+    // CBC mode encryption and decryption
+    desCbc(key, iv, padded, encrypted, padded_len, DES_ENCRYPT);
+    printHex("CBC Encrypted", encrypted, padded_len);
+
+    desCbc(key, iv, encrypted, decrypted, padded_len, DES_DECRYPT);
+    printHex("CBC Decrypted", decrypted, padded_len);
+
+    // CFB mode encryption and decryption
+    desCfb(key, iv, padded, encrypted, padded_len, DES_ENCRYPT);
+    printHex("CFB Encrypted", encrypted, padded_len);
+
+    desCfb(key, iv, encrypted, decrypted, padded_len, DES_DECRYPT);
+    printHex("CFB Decrypted", decrypted, padded_len);
+
+    return 0;
+}
