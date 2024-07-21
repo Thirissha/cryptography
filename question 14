@@ -1,0 +1,51 @@
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <ctype.h>
+
+#define MAX_LEN 100
+
+// Function to encrypt plaintext using one-time pad Vigenère cipher
+void encrypt(char *plaintext, int *key, int key_length) {
+    int len = strlen(plaintext);
+    int i, j;
+
+    for (i = 0; i < len; i++) {
+        if (isalpha(plaintext[i])) {
+            int shift = key[i % key_length]; // Get current key shift
+            if (islower(plaintext[i])) {
+                plaintext[i] = 'a' + (plaintext[i] - 'a' + shift) % 26;
+            } else {
+                plaintext[i] = 'A' + (plaintext[i] - 'A' + shift) % 26;
+            }
+        }
+    }
+}
+
+int main() {
+    char plaintext[MAX_LEN];
+    int key[MAX_LEN];
+    int key_length = 0;
+
+    // Example of random key sequence (you can modify this as needed)
+    int random_key[] = {3, 19, 5, 8, 10}; // Example key: 3 19 5 8 10
+
+    // Read plaintext input
+    printf("Enter plaintext: ");
+    fgets(plaintext, sizeof(plaintext), stdin);
+    plaintext[strcspn(plaintext, "\n")] = '\0'; // Remove newline character
+
+    // Calculate key length
+    key_length = sizeof(random_key) / sizeof(random_key[0]);
+
+    // Copy random key into key array
+    memcpy(key, random_key, key_length * sizeof(int));
+
+    // Encrypt plaintext using one-time pad Vigenère cipher
+    encrypt(plaintext, key, key_length);
+
+    // Print encrypted ciphertext
+    printf("Encrypted ciphertext: %s\n", plaintext);
+
+    return 0;
+}
