@@ -1,0 +1,137 @@
+#include <openssl/evp.h>
+#include <openssl/rand.h>
+#include <stdio.h>
+#include <string.h>
+#include <stdlib.h>
+
+void handleErrors(void) {
+    ERR_print_errors_fp(stderr);
+    abort();
+}
+
+void pad(unsigned char *input, int *len, int block_size) {
+    int pad_len = block_size - (*len % block_size);
+    input[*len] = 0x80; // 0x80 represents the '1' bit followed by '0' bits
+    memset(input + *len + 1, 0, pad_len - 1);
+    *len += pad_len;
+}
+
+int encrypt(unsigned char *plaintext, int plaintext_len, unsigned char *key,
+            unsigned char *iv, unsigned char *ciphertext, const EVP_CIPHER *cipher) {
+    EVP_CIPHER_CTX *ctx;
+    int len;
+    int ciphertext_len;
+
+    /* Create and initialise the context */
+    if (!(ctx = EVP_CIPHER_CTX_new())) handleErrors();
+
+    /* Initialise the encryption operation. */
+    if (1 != EVP_EncryptInit_ex(ctx, cipher, NULL, key, iv))
+        handleErrors();
+
+    /* Provide the message to be encrypted, and obtain the encrypted output.
+     * EVP_EncryptUpdate can be called multiple times if necessary
+     */
+    if (1 != EVP_EncryptUpdate(ctx, ciphertext, &len, plaintext, plaintext_len))
+        handleErrors();
+    ciphertext_len = len;
+
+    /* Finalise the encryption. Further ciphertext bytes may be written at
+     * this stage.
+     */
+    if (1 != EVP_EncryptFinal_ex(ctx, ciphertext + len, &len)) handleErrors();
+    ciphertext_len += len;
+
+    /* Clean up */
+    EVP_CIPHER_CTX_free(ctx);
+
+    return ciphertext_len;
+}
+
+int decrypt(unsigned char *ciphertext, int ciphertext_len, unsigned char *key,
+            unsigned char *iv, unsigned char *plaintext, const EVP_CIPHER *cipher) {
+    EVP_CIPHER_CTX *ctx;
+    int len;
+    int plaintext_len;
+
+    /* Create and initialise the context */
+    if (!(ctx = EVP_CIPHER_CTX_new())) handleErrors();
+
+    /* Initialise the decryption operation. */
+    if (1 != EVP_DecryptInit_ex(ctx, cipher, NULL, key, iv))
+        handleErrors();
+
+    /* Provide the message to be decrypted, and obtain the plaintext output.
+     * EVP_DecryptUpdate can be called multiple times if necessary
+     */
+    if (1 != EVP_DecryptUpdate(ctx, plaintext, &len, ciphertext, ciphertext_len))
+        handleErrors();
+    plaintext_len = len;
+
+    /* Finalise the decryption. Further plaintext bytes may be written at
+     * this stage.
+     */
+    if (1 != EVP_DecryptFinal_ex(ctx, plaintext + len, &len)) handleErrors();
+    plaintext_len += len;
+
+    /* Clean up */
+    EVP_CIPHER_CTX_free(ctx);
+
+    return plaintext_len;
+}
+
+int main(void) {
+    /* A 24 byte key */
+    unsigned char key[24];
+    /* A 8 byte IV */
+    unsigned char iv[8];
+    /* Message to be encrypted */
+    unsigned char plaintext[128] = "The quick brown fox jumps over the lazy dog";
+    int plaintext_len = strlen((char *)plaintext);
+
+    /* Buffers for ciphertext and decrypted text */
+    unsigned char ciphertext[128];
+    unsigned char decryptedtext[128];
+
+    int decryptedtext_len, ciphertext_len;
+
+    /* Generate random key and IV */
+    if (!RAND_bytes(key, sizeof(key))) handleErrors();
+    if (!RAND_bytes(iv, sizeof(iv))) handleErrors();
+
+    /* Pad the plaintext */
+    pad(plaintext, &plaintext_len, EVP_CIPHER_block_size(EVP_des_ede3_ecb()));
+
+    /* Encrypt the plaintext in ECB mode */
+    ciphertext_len = encrypt(plaintext, plaintext_len, key, NULL, ciphertext, EVP_des_ede3_ecb());
+    printf("ECB mode:\nCiphertext is:\n");
+    BIO_dump_fp(stdout, (const char *)ciphertext, ciphertext_len);
+
+    /* Decrypt the ciphertext in ECB mode */
+    decryptedtext_len = decrypt(ciphertext, ciphertext_len, key, NULL, decryptedtext, EVP_des_ede3_ecb());
+    decryptedtext[decryptedtext_len] = '\0';
+    printf("Decrypted text is:\n%s\n", decryptedtext);
+
+    /* Encrypt the plaintext in CBC mode */
+    ciphertext_len = encrypt(plaintext, plaintext_len, key, iv, ciphertext, EVP_des_ede3_cbc());
+    printf("\nCBC mode:\nCiphertext is:\n");
+    BIO_dump_fp(stdout, (const char *)ciphertext, ciphertext_len);
+
+    /* Decrypt the ciphertext in CBC mode */
+    decryptedtext_len = decrypt(ciphertext, ciphertext_len, key, iv, decryptedtext, EVP_des_ede3_cbc());
+    decryptedtext[decryptedtext_len] = '\0';
+    printf("Decrypted text is:\n%s\n", decryptedtext);
+
+    /* Encrypt the plaintext in CFB mode */
+    ciphertext_len = encrypt(plaintext, plaintext_len, key, iv, ciphertext, EVP_des_ede3_cfb64());
+    printf("\nCFB mode:\nCiphertext is:\n");
+    BIO_dump_fp(stdout, (const char *)ciphertext, ciphertext_len);
+
+    /* Decrypt the ciphertext in CFB mode */
+    decryptedtext_len = decrypt(ciphertext, ciphertext_len, key, iv, decryptedtext, EVP_des_ede3_cfb64());
+    decryptedtext[decryptedtext_len] = '\0';
+    printf("Decrypted text is:\n%s\n", decryptedtext);
+
+    return 0;
+}
+
