@@ -1,0 +1,111 @@
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <ctype.h>
+
+#define ALPHABET_SIZE 26
+#define TOP_N_RESULTS 10
+
+// Function to calculate letter frequencies
+void calculateFrequencies(const char *text, double *freqs) {
+    int count[ALPHABET_SIZE] = {0};
+    int totalLetters = 0;
+
+    for (size_t i = 0; i < strlen(text); i++) {
+        if (isalpha(text[i])) {
+            char letter = toupper(text[i]);
+            count[letter - 'A']++;
+            totalLetters++;
+        }
+    }
+
+    for (int i = 0; i < ALPHABET_SIZE; i++) {
+        freqs[i] = (double)count[i] / totalLetters;
+    }
+}
+
+// Function to print letter frequencies
+void printFrequencies(const double *freqs) {
+    for (int i = 0; i < ALPHABET_SIZE; i++) {
+        printf("%c: %.2f%%\n", 'A' + i, freqs[i] * 100);
+    }
+}
+
+// Function to compare frequencies and score a plaintext
+double scorePlaintext(const double *freqs) {
+    // Expected frequencies in English (approximate)
+    double englishFreqs[ALPHABET_SIZE] = {
+        0.082, 0.015, 0.028, 0.043, 0.127, 0.022, 0.020, 0.061, 0.070, 0.001,
+        0.005, 0.040, 0.024, 0.067, 0.075, 0.019, 0.001, 0.060, 0.063, 0.091,
+        0.028, 0.010, 0.024, 0.001, 0.020, 0.001
+    };
+
+    double score = 0.0;
+    for (int i = 0; i < ALPHABET_SIZE; i++) {
+        score += (1 - fabs(freqs[i] - englishFreqs[i])) * 100; // Score based on how close the frequency is
+    }
+    return score;
+}
+
+// Function to decrypt ciphertext with a given shift
+void decrypt(const char *ciphertext, int shift, char *plaintext) {
+    for (size_t i = 0; i < strlen(ciphertext); i++) {
+        if (isalpha(ciphertext[i])) {
+            char letter = toupper(ciphertext[i]);
+            plaintext[i] = ((letter - 'A' - shift + ALPHABET_SIZE) % ALPHABET_SIZE) + 'A';
+        } else {
+            plaintext[i] = ciphertext[i];
+        }
+    }
+    plaintext[strlen(ciphertext)] = '\0';
+}
+
+int main() {
+    const char *ciphertext = "YOUR_CIPHERTEXT_HERE"; // Replace with actual ciphertext
+    size_t textLength = strlen(ciphertext);
+
+    double freqs[ALPHABET_SIZE];
+    calculateFrequencies(ciphertext, freqs);
+
+    printf("Letter frequencies:\n");
+    printFrequencies(freqs);
+
+    char plaintext[textLength + 1];
+    double scores[TOP_N_RESULTS] = {0};
+    char *topResults[TOP_N_RESULTS] = {NULL};
+
+    for (int i = 0; i < TOP_N_RESULTS; i++) {
+        scores[i] = -1; // Initialize with invalid score
+    }
+
+    for (int shift = 0; shift < ALPHABET_SIZE; shift++) {
+        decrypt(ciphertext, shift, plaintext);
+
+        double currentFreqs[ALPHABET_SIZE];
+        calculateFrequencies(plaintext, currentFreqs);
+
+        double score = scorePlaintext(currentFreqs);
+
+        for (int j = 0; j < TOP_N_RESULTS; j++) {
+            if (score > scores[j]) {
+                for (int k = TOP_N_RESULTS - 1; k > j; k--) {
+                    scores[k] = scores[k - 1];
+                    topResults[k] = topResults[k - 1];
+                }
+                scores[j] = score;
+                topResults[j] = strdup(plaintext);
+                break;
+            }
+        }
+    }
+
+    printf("\nTop %d possible plaintexts:\n", TOP_N_RESULTS);
+    for (int i = 0; i < TOP_N_RESULTS; i++) {
+        if (topResults[i] != NULL) {
+            printf("Plaintext: %s (Score: %.2f)\n", topResults[i], scores[i]);
+            free(topResults[i]);
+        }
+    }
+
+    return 0;
+}
