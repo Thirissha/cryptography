@@ -1,0 +1,229 @@
+#include <stdio.h>
+#include <string.h>
+
+#define IP_SIZE 8
+#define EXPANSION_SIZE 8
+#define S_BOX_SIZE 4
+#define P4_SIZE 4
+#define KEY_SIZE 10
+#define BLOCK_SIZE 8
+
+// Initial Permutation table
+int IP[IP_SIZE] = {2, 6, 3, 1, 4, 8, 5, 7};
+
+// Inverse Initial Permutation table
+int IP_inv[IP_SIZE] = {4, 1, 3, 5, 7, 2, 8, 6};
+
+// P10 table
+int P10[KEY_SIZE] = {3, 5, 2, 7, 4, 10, 1, 9, 8, 6};
+
+// P8 table
+int P8[BLOCK_SIZE] = {6, 3, 7, 4, 8, 5, 10, 9};
+
+// Expansion table
+int EP[EXPANSION_SIZE] = {4, 1, 2, 3, 2, 3, 4, 1};
+
+// P4 table
+int P4[P4_SIZE] = {2, 4, 3, 1};
+
+// S-boxes
+int S0[4][4] = {{1, 0, 3, 2},
+                {3, 2, 1, 0},
+                {0, 2, 1, 3},
+                {3, 1, 3, 2}};
+int S1[4][4] = {{0, 1, 2, 3},
+                {2, 0, 1, 3},
+                {3, 0, 1, 0},
+                {2, 1, 0, 3}};
+
+// Key generation
+void permute(int *input, int *output, int *table, int n) {
+    for (int i = 0; i < n; i++) {
+        output[i] = input[table[i] - 1];
+    }
+}
+
+void leftShift(int *key, int shifts) {
+    int temp[KEY_SIZE / 2];
+    for (int i = 0; i < shifts; i++) {
+        // Left half
+        temp[0] = key[0];
+        for (int j = 0; j < KEY_SIZE / 2 - 1; j++) {
+            key[j] = key[j + 1];
+        }
+        key[KEY_SIZE / 2 - 1] = temp[0];
+
+        // Right half
+        temp[0] = key[KEY_SIZE / 2];
+        for (int j = KEY_SIZE / 2; j < KEY_SIZE - 1; j++) {
+            key[j] = key[j + 1];
+        }
+        key[KEY_SIZE - 1] = temp[0];
+    }
+}
+
+void generateKeys(int *key, int *K1, int *K2) {
+    int temp[KEY_SIZE];
+
+    // P10 permutation
+    permute(key, temp, P10, KEY_SIZE);
+
+    // Left shifts
+    leftShift(temp, 1);
+    permute(temp, K1, P8, BLOCK_SIZE);
+
+    leftShift(temp, 2);
+    permute(temp, K2, P8, BLOCK_SIZE);
+}
+
+// Function F
+void F(int *R, int *K, int *output) {
+    int temp[EXPANSION_SIZE];
+    int row, col, S0_output, S1_output;
+
+    // Expansion permutation
+    permute(R, temp, EP, EXPANSION_SIZE);
+
+    // XOR with key
+    for (int i = 0; i < EXPANSION_SIZE; i++) {
+        temp[i] ^= K[i];
+    }
+
+    // S-boxes
+    row = temp[0] * 2 + temp[3];
+    col = temp[1] * 2 + temp[2];
+    S0_output = S0[row][col];
+
+    row = temp[4] * 2 + temp[7];
+    col = temp[5] * 2 + temp[6];
+    S1_output = S1[row][col];
+
+    // S-box output
+    output[0] = (S0_output & 0x2) >> 1;
+    output[1] = S0_output & 0x1;
+    output[2] = (S1_output & 0x2) >> 1;
+    output[3] = S1_output & 0x1;
+
+    // P4 permutation
+    permute(output, output, P4, P4_SIZE);
+}
+
+// Round function
+void round(int *input, int *output, int *K) {
+    int L[BLOCK_SIZE / 2], R[BLOCK_SIZE / 2];
+    int F_output[P4_SIZE];
+
+    // Split input into L and R
+    for (int i = 0; i < BLOCK_SIZE / 2; i++) {
+        L[i] = input[i];
+        R[i] = input[i + BLOCK_SIZE / 2];
+    }
+
+    // Function F
+    F(R, K, F_output);
+
+    // XOR F output with L and swap L and R
+    for (int i = 0; i < BLOCK_SIZE / 2; i++) {
+        output[i] = R[i];
+        output[i + BLOCK_SIZE / 2] = L[i] ^ F_output[i];
+    }
+}
+
+// Encrypt function
+void encrypt(int *plaintext, int *ciphertext, int *K1, int *K2) {
+    int temp[BLOCK_SIZE];
+
+    // Initial permutation
+    permute(plaintext, temp, IP, IP_SIZE);
+
+    // Rounds
+    round(temp, ciphertext, K1);
+    round(ciphertext, temp, K2);
+
+    // Swap L and R
+    for (int i = 0; i < BLOCK_SIZE / 2; i++) {
+        int t = temp[i];
+        temp[i] = temp[i + BLOCK_SIZE / 2];
+        temp[i + BLOCK_SIZE / 2] = t;
+    }
+
+    // Inverse permutation
+    permute(temp, ciphertext, IP_inv, IP_SIZE);
+}
+
+// Decrypt function
+void decrypt(int *ciphertext, int *plaintext, int *K1, int *K2) {
+    int temp[BLOCK_SIZE];
+
+    // Initial permutation
+    permute(ciphertext, temp, IP, IP_SIZE);
+
+    // Rounds (note the order of K1 and K2 is reversed)
+    round(temp, plaintext, K2);
+    round(plaintext, temp, K1);
+
+    // Swap L and R
+    for (int i = 0; i < BLOCK_SIZE / 2; i++) {
+        int t = temp[i];
+        temp[i] = temp[i + BLOCK_SIZE / 2];
+        temp[i + BLOCK_SIZE / 2] = t;
+    }
+
+    // Inverse permutation
+    permute(temp, plaintext, IP_inv, IP_SIZE);
+}
+
+// Convert binary string to integer array
+void binStrToIntArray(const char *str, int *arr, int n) {
+    for (int i = 0; i < n; i++) {
+        arr[i] = str[i] - '0';
+    }
+}
+
+// Print binary array
+void printBinaryArray(int *arr, int n) {
+    for (int i = 0; i < n; i++) {
+        printf("%d", arr[i]);
+    }
+    printf("\n");
+}
+
+// XOR operation on two arrays
+void xorArrays(int *a, int *b, int *result, int n) {
+    for (int i = 0; i < n; i++) {
+        result[i] = a[i] ^ b[i];
+    }
+}
+
+// Encrypt function in CBC mode
+void cbcEncrypt(int *plaintext, int *ciphertext, int *K1, int *K2, int *iv, int n) {
+    int temp[BLOCK_SIZE];
+    int prevCiphertext[BLOCK_SIZE];
+
+    // Initialize with IV
+    memcpy(prevCiphertext, iv, BLOCK_SIZE * sizeof(int));
+
+    for (int i = 0; i < n; i += BLOCK_SIZE) {
+        xorArrays(plaintext + i, prevCiphertext, temp, BLOCK_SIZE);
+        encrypt(temp, ciphertext + i, K1, K2);
+        memcpy(prevCiphertext, ciphertext + i, BLOCK_SIZE * sizeof(int));
+    }
+}
+
+// Decrypt function in CBC mode
+void cbcDecrypt(int *ciphertext, int *plaintext, int *K1, int *K2, int *iv, int n) {
+    int temp[BLOCK_SIZE];
+    int prevCiphertext[BLOCK_SIZE];
+
+    // Initialize with IV
+    memcpy(prevCiphertext, iv, BLOCK_SIZE * sizeof(int));
+
+    for (int i = 0; i < n; i += BLOCK_SIZE) {
+        decrypt(ciphertext + i, temp, K1, K2);
+        xorArrays(temp, prevCiphertext, plaintext + i, BLOCK_SIZE);
+        memcpy(prevCiphertext, ciphertext + i, BLOCK_SIZE * sizeof(int));
+    }
+}
+
+int main() {
+    int K1[BLOCK_SIZE], K2[BLOCK_SIZE
