@@ -1,0 +1,38 @@
+#include <stdio.h>
+#include <stdlib.h>
+
+// Function to compute the greatest common divisor (GCD) using the Euclidean algorithm
+long long int gcd(long long int a, long long int b) {
+    while (b != 0) {
+        long long int t = b;
+        b = a % b;
+        a = t;
+    }
+    return a;
+}
+
+// Function to check if a given ciphertext has a plaintext block that shares a factor with n
+void checkCommonFactor(long long int n, long long int ciphertext[], int numBlocks) {
+    for (int i = 0; i < numBlocks; i++) {
+        long long int factor = gcd(ciphertext[i], n);
+        if (factor > 1) {
+            printf("Ciphertext block %lld shares a factor with n: %lld\n", ciphertext[i], factor);
+            printf("This factor can help in breaking the RSA encryption.\n");
+            return;
+        }
+    }
+    printf("No ciphertext block shares a common factor with n.\n");
+}
+
+int main() {
+    // Example values
+    long long int n = 55; // n = p * q = 5 * 11
+    long long int e = 3;  // Public key exponent
+    long long int ciphertext[] = { 2, 28, 53 }; // Example ciphertext blocks
+    int numBlocks = sizeof(ciphertext) / sizeof(ciphertext[0]);
+
+    printf("Checking for common factors with n = %lld...\n", n);
+    checkCommonFactor(n, ciphertext, numBlocks);
+
+    return 0;
+}
