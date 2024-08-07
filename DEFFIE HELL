@@ -1,0 +1,58 @@
+#include <stdio.h>
+#include <stdlib.h>
+#include <math.h>
+
+// Function to perform modular exponentiation
+// It returns (base^exp) % mod
+long long int modExp(long long int base, long long int exp, long long int mod) {
+    long long int result = 1;
+    base = base % mod;
+    while (exp > 0) {
+        if (exp % 2 == 1) {
+            result = (result * base) % mod;
+        }
+        exp = exp >> 1;
+        base = (base * base) % mod;
+    }
+    return result;
+}
+
+int main() {
+    long long int q, a; // public prime number and base
+    long long int xA, xB; // secret numbers chosen by Alice and Bob
+    long long int yA, yB; // public values sent by Alice and Bob
+    long long int kA, kB; // secret keys computed by Alice and Bob
+
+    // Public parameters (These should be agreed upon by both parties)
+    q = 23; // a prime number
+    a = 5; // a primitive root modulo q
+
+    // Secret numbers chosen by Alice and Bob
+    xA = 6; // Alice's secret number
+    xB = 15; // Bob's secret number
+
+    // Alice sends Bob: yA = a^xA % q
+    yA = modExp(a, xA, q);
+    printf("Alice sends to Bob: %lld\n", yA);
+
+    // Bob sends Alice: yB = a^xB % q
+    yB = modExp(a, xB, q);
+    printf("Bob sends to Alice: %lld\n", yB);
+
+    // Alice computes the secret key: kA = yB^xA % q
+    kA = modExp(yB, xA, q);
+    printf("Alice's computed key: %lld\n", kA);
+
+    // Bob computes the secret key: kB = yA^xB % q
+    kB = modExp(yA, xB, q);
+    printf("Bob's computed key: %lld\n", kB);
+
+    // If the protocol is correctly implemented, kA should be equal to kB
+    if (kA == kB) {
+        printf("Key exchange successful. Shared secret key: %lld\n", kA);
+    } else {
+        printf("Key exchange failed.\n");
+    }
+
+    return 0;
+}
