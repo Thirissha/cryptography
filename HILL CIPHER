@@ -1,0 +1,79 @@
+#include <stdio.h>
+#include <string.h>
+
+#define MOD 26
+
+// Function to perform matrix multiplication
+void matrixMultiply(int a[2][2], int b[2], int result[2]) {
+    result[0] = (a[0][0] * b[0] + a[0][1] * b[1]) % MOD;
+    result[1] = (a[1][0] * b[0] + a[1][1] * b[1]) % MOD;
+}
+
+// Function to convert a character to its numerical equivalent
+int charToNum(char c) {
+    return c - 'a';
+}
+
+// Function to convert a numerical equivalent to its character
+char numToChar(int n) {
+    return n + 'a';
+}
+
+// Function to prepare the plaintext for encryption
+void prepareText(char *input, char *output) {
+    int len = strlen(input);
+    int index = 0;
+
+    for (int i = 0; i < len; i++) {
+        if (input[i] >= 'a' && input[i] <= 'z') {
+            output[index++] = input[i];
+        } else if (input[i] >= 'A' && input[i] <= 'Z') {
+            output[index++] = input[i] + 32; // Convert to lowercase
+        }
+    }
+
+    // Ensure the length is even by adding a padding character 'x' if necessary
+    if (index % 2 != 0) {
+        output[index++] = 'x';
+    }
+
+    output[index] = '\0';
+}
+
+// Function to encrypt the plaintext using the Hill cipher
+void encrypt(char *plaintext, char *ciphertext, int key[2][2]) {
+    int len = strlen(plaintext);
+    for (int i = 0; i < len; i += 2) {
+        int pair[2] = { charToNum(plaintext[i]), charToNum(plaintext[i + 1]) };
+        int result[2];
+
+        matrixMultiply(key, pair, result);
+
+        ciphertext[i] = numToChar(result[0]);
+        ciphertext[i + 1] = numToChar(result[1]);
+    }
+
+    ciphertext[len] = '\0';
+}
+
+int main() {
+    char plaintext[] = "meet me at the usual place at ten rather than eight oclock";
+    char preparedText[100];
+    char ciphertext[100];
+
+    int key[2][2] = {
+        {9, 4},
+        {5, 7}
+    };
+
+    // Prepare the plaintext
+    prepareText(plaintext, preparedText);
+
+    // Encrypt the plaintext
+    encrypt(preparedText, ciphertext, key);
+
+    // Output the ciphertext
+    printf("Ciphertext: %s\n", ciphertext);
+
+    return 0;
+}
