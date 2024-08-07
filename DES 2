@@ -1,0 +1,75 @@
+#include <stdio.h>
+#include <string.h>
+
+// Function prototypes
+void generateSubkeys(char key[], char subkeys[16][48]);
+
+int main() {
+    char key[57];  // 56-bit key as 56 characters (0 or 1)
+    char subkeys[16][48];  // 16 subkeys, each 48-bit
+
+    // Input 56-bit key
+    printf("Enter a 56-bit key (56 characters of 0 or 1): ");
+    scanf("%56s", key);
+
+    // Ensure the input is exactly 56 bits long
+    if (strlen(key) != 56) {
+        printf("Key must be exactly 56 bits long.\n");
+        return 1;
+    }
+
+    // Generate the subkeys
+    generateSubkeys(key, subkeys);
+
+    // Print the subkeys
+    for (int i = 0; i < 16; i++) {
+        printf("Subkey %2d: ", i + 1);
+        for (int j = 0; j < 48; j++) {
+            printf("%c", subkeys[i][j]);
+        }
+        printf("\n");
+    }
+
+    return 0;
+}
+
+// Function to generate subkeys
+void generateSubkeys(char key[], char subkeys[16][48]) {
+    char left[29], right[29];  // Two 28-bit halves (as null-terminated strings)
+
+    // Split the key into two 28-bit halves
+    strncpy(left, key, 28);
+    left[28] = '\0';
+    strncpy(right, key + 28, 28);
+    right[28] = '\0';
+
+    // Function to perform left circular shift
+    void leftShift(char bits[], int numShifts) {
+        for (int i = 0; i < numShifts; i++) {
+            char first = bits[0];
+            for (int j = 0; j < 27; j++) {
+                bits[j] = bits[j + 1];
+            }
+            bits[27] = first;
+        }
+    }
+
+    // Number of shifts for each round
+    int shiftSchedule[16] = {
+        1, 1, 2, 2, 2, 2, 2, 2,
+        1, 2, 2, 2, 2, 2, 2, 1
+    };
+
+    // Generate 16 subkeys
+    for (int round = 0; round < 16; round++) {
+        // Perform the left shifts
+        leftShift(left, shiftSchedule[round]);
+        leftShift(right, shiftSchedule[round]);
+
+        // Combine the two halves into a 48-bit subkey
+        for (int i = 0; i < 24; i++) {
+            subkeys[round][i] = left[i];
+            subkeys[round][i + 24] = right[i + 4];  // Disjoint subsets
+        }
+    }
+}
